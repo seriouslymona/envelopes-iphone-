@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Envelopes">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<title>Envelopes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600&family=Outfit:wght@200;300;400;500&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eceef1; --fg:#15171a; --muted:#6f757f; --line:rgba(20,23,26,.09);
+  --sheet:#f8f9fa; --key:rgba(20,23,26,.05); --danger:#d6453d;
+  --accent:#6f8cff; --font:'Figtree'; --dim:.35; --blur:0px; --scale:1;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#000000; --fg:#eef0f3; --muted:#8a909a; --line:rgba(238,240,243,.09);
+    --sheet:#121316; --key:rgba(238,240,243,.06); --danger:#ff6b62; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#000000; --fg:#eef0f3; --muted:#8a909a; --line:rgba(238,240,243,.09);
+  --sheet:#121316; --key:rgba(238,240,243,.06); --danger:#ff6b62; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);font-size:calc(16px * var(--scale))}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);
+  font-family:var(--font),'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+input{font:inherit;color:inherit}
+
+#wp,#dim{position:fixed;inset:0;z-index:0;pointer-events:none;display:none}
+#wp{background-size:cover;background-position:center;background-repeat:no-repeat;filter:blur(var(--blur))}
+#adj{position:fixed;inset:0;z-index:15;display:none;touch-action:none;cursor:grab}
+body.adjusting #adj{display:block}
+body.adjusting .app,body.adjusting .dock{visibility:hidden}
+#adjBar{position:absolute;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;padding:18px 24px calc(22px + env(safe-area-inset-bottom,0px));
+  background:color-mix(in srgb,var(--sheet) 90%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-radius:24px 24px 0 0;color:var(--fg);cursor:default}
+#adjBar .row .go{background:var(--accent);color:#fff}
+#dim{background:var(--bg);opacity:var(--dim)}
+body.has-wp #wp,body.has-wp #dim{display:block}
+
+.app{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:28px 28px 150px;min-height:100%}
+
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:18px}
+.month{font-size:2.6rem;font-weight:300;letter-spacing:-.02em;line-height:1}
+.year{font-size:1rem;color:var(--muted);margin-top:8px;font-weight:400}
+.arrows{display:flex;gap:4px}
+.arrows button{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.arrows button:active{background:var(--key)}
+.today{font-size:.8rem;color:var(--accent);margin-left:6px}
+
+.summary{display:block;width:100%;text-align:left;margin:38px 0 30px}
+.left{font-size:1.05rem;color:var(--muted)}
+.left b{display:block;font-size:3.1rem;font-weight:200;color:var(--fg);letter-spacing:-.03em;margin-top:4px;line-height:1.05;font-variant-numeric:tabular-nums}
+.left b.neg{color:var(--danger)}
+.meta{font-size:.9rem;color:var(--muted);margin-top:10px;line-height:1.55}
+.meta em{font-style:normal;color:var(--accent)}
+
+.group{font-size:.92rem;color:var(--muted);margin:30px 0 4px}
+.list{list-style:none;margin:0;padding:0}
+.env{display:block;width:100%;text-align:left;padding:18px 0 16px;border-bottom:1px solid var(--line)}
+.list li:first-child .env{border-top:1px solid var(--line)}
+.r1{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.name{font-size:1.65rem;font-weight:300;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.amt{font-size:1.1rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.amt.neg{color:var(--danger)}
+.bar{height:3px;border-radius:3px;background:var(--line);margin:12px 0 8px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px;background:var(--c,var(--accent));transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.goal .bar{height:6px;border-radius:6px}
+.goal .bar i{border-radius:6px}
+.hide-bars .bar{display:none}
+.hide-bars .env .r2{margin-top:6px}
+.r2{display:flex;justify-content:space-between;gap:12px;font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c,var(--accent));margin-right:10px;vertical-align:middle;position:relative;top:-3px}
+.ring{display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--c,var(--accent));margin-right:10px;vertical-align:middle;position:relative;top:-3px}
+
+.empty{padding:30px 0;color:var(--muted);line-height:1.6;font-size:1.05rem}
+.empty .acts{display:flex;gap:20px;margin-top:12px}
+.empty button{color:var(--accent);font-size:1.05rem}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;justify-content:center;
+  padding:0 0 calc(18px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.dock-in{display:flex;gap:6px;padding:6px;border-radius:999px;pointer-events:auto;
+  background:color-mix(in srgb,var(--sheet) 82%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--line)}
+.dock button{width:52px;height:52px;border-radius:50%;display:grid;place-items:center}
+.dock button.add{background:var(--accent);color:#fff}
+.dock button:active{transform:scale(.94)}
+
+#scrim{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s}
+#scrim.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:560px;margin:0 auto;max-height:90dvh;overflow:auto;
+  background:var(--sheet);border-radius:28px 28px 0 0;padding:12px 24px calc(28px + env(safe-area-inset-bottom,0px));
+  transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.8,.2,1);overscroll-behavior:contain}
+#sheet.on{transform:none}
+.grab{width:40px;height:4px;border-radius:4px;background:var(--line);margin:0 auto 18px}
+.sh-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+h2{font-size:1.9rem;font-weight:300;margin:0;letter-spacing:-.01em;line-height:1.15}
+.sub{color:var(--muted);font-size:.9rem;margin-top:6px;line-height:1.55}
+.icon{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:var(--muted);flex:none}
+.icon:active{background:var(--key)}
+
+.seg{display:flex;background:var(--key);border-radius:999px;padding:4px;margin:20px 0 6px}
+.seg button{flex:1;padding:10px 6px;border-radius:999px;font-size:.92rem;color:var(--muted)}
+.seg button.on{background:var(--sheet);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.amount{font-size:2.8rem;font-weight:200;text-align:center;margin:18px 0 8px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.amount.shake{animation:sh .3s}
+@keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.pad button{height:56px;border-radius:16px;background:var(--key);font-size:1.4rem;font-weight:300}
+.pad button:active{background:var(--line)}
+.field{width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:var(--key);font-size:1rem;outline:none}
+.field:focus{border-color:var(--accent)}
+.lbl{display:block;font-size:.88rem;color:var(--muted);margin:20px 0 8px}
+.primary{width:100%;padding:16px;border-radius:999px;background:var(--accent);color:#fff;font-size:1.02rem;font-weight:500;margin-top:6px}
+.primary:active{filter:brightness(.92)}
+.ghost{width:100%;padding:14px;border-radius:999px;font-size:.98rem;margin-top:10px;color:var(--muted)}
+.ghost.danger{color:var(--danger)}
+.ghost.armed{background:var(--danger);color:#fff}
+.sect{font-size:.88rem;color:var(--muted);margin:30px 0 6px}
+
+.tx{list-style:none;margin:0;padding:0}
+.tx li{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.tx .t{flex:1;min-width:0}
+.tx .t div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx small{color:var(--muted);font-size:.8rem}
+.tx .v{font-variant-numeric:tabular-nums}
+.tx .v.plus{color:var(--accent)}
+.tx .x{width:32px;height:32px;border-radius:50%;color:var(--muted);display:grid;place-items:center}
+.tx .none{color:var(--muted);border:0;font-size:.92rem}
+
+.sw{display:flex;flex-wrap:wrap;gap:12px}
+.sw button{width:38px;height:38px;border-radius:50%;background:var(--c);position:relative}
+.sw button.on::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--fg)}
+.sw .auto{background:conic-gradient(from 90deg,#6f8cff,#5ec4a8,#f2b155,#f27d72,#c58af9,#6f8cff)}
+.sw label{width:38px;height:38px;border-radius:50%;border:1px dashed var(--muted);display:grid;place-items:center;color:var(--muted);position:relative;overflow:hidden;cursor:pointer}
+.sw label input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.row{display:flex;gap:10px}
+.row button{flex:1;padding:13px;border-radius:14px;background:var(--key);font-size:.95rem}
+.range{display:flex;align-items:center;gap:14px;margin-top:12px;font-size:.9rem;color:var(--muted)}
+.range span{width:42px}
+.range input{flex:1;accent-color:var(--accent)}
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.toggle small{display:block;color:var(--muted);font-size:.8rem;margin-top:3px;line-height:1.4}
+.sw-t{width:48px;height:28px;border-radius:999px;background:var(--line);position:relative;transition:background .2s;flex:none}
+.sw-t::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.sw-t.on{background:var(--accent)}
+.sw-t.on::after{transform:translateX(20px)}
+textarea.field{min-height:110px;font-family:'DM Mono',ui-monospace,monospace;font-size:.75rem;resize:vertical}
+.app{color:var(--fg)}
+.sw button{box-shadow:inset 0 0 0 1px var(--line)}
+.sw .none{border:1px dashed var(--muted);box-shadow:none;background:none;color:var(--muted);font-size:.8rem}
+.icgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.icgrid button{aspect-ratio:1;border-radius:30%;background:var(--key) center/150% no-repeat;position:relative}
+.icgrid button.on::after{content:"";position:absolute;inset:-4px;border-radius:32%;border:2px solid var(--fg)}
+.icrow{display:flex;gap:18px;align-items:center}
+.icprev{width:84px;height:84px;border-radius:30%;flex:none;border:1px solid var(--line);background:var(--key) center/150% no-repeat}
+.icside{flex:1;min-width:0}
+.icside>button{width:100%;padding:13px;border-radius:14px;background:var(--key);font-size:.95rem}
+.note{font-size:.88rem;color:var(--muted);line-height:1.55;margin-top:10px}
+
+#toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:30;transform:translate(-50%,20px);
+  background:var(--fg);color:var(--sheet);padding:10px 18px;border-radius:999px;font-size:.9rem;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+.tx .lnk{color:var(--accent);font-size:.88rem;padding:6px 8px;border-radius:8px;flex:none}
+.tx .inl{width:110px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--key);font-size:.95rem}
+#tour{position:fixed;inset:0;z-index:40;display:none}
+#tour.on{display:block}
+#tour .spot{position:fixed;border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,.62);transition:all .35s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+#tour .tip{position:fixed;width:min(340px,calc(100vw - 32px));background:var(--sheet);color:var(--fg);border-radius:22px;padding:20px 20px 16px;
+  box-shadow:0 12px 40px rgba(0,0,0,.3);transition:top .35s cubic-bezier(.2,.8,.2,1),left .35s cubic-bezier(.2,.8,.2,1)}
+#tour h3{margin:0 0 8px;font-size:1.25rem;font-weight:500;letter-spacing:-.01em}
+#tour p{margin:0;color:var(--muted);line-height:1.55;font-size:.95rem}
+#tour .tf{display:flex;align-items:center;justify-content:space-between;margin-top:18px;gap:10px}
+#tour .dots{display:flex;gap:5px;flex-wrap:wrap}
+#tour .dots i{width:6px;height:6px;border-radius:6px;background:var(--line);transition:width .25s}
+#tour .dots i.on{background:var(--accent);width:16px}
+#tour .tb{display:flex;gap:4px;flex:none}
+#tour .tb button{padding:10px 12px;border-radius:999px;font-size:.92rem;color:var(--muted)}
+#tour .tb .nx{background:var(--accent);color:#fff;padding:10px 18px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="wp"></div><div id="dim"></div>
+<div id="adj"><div id="adjBar"><div class="note" style="margin:0">Drag to move your wallpaper. Pinch or use the slider to zoom.</div>
+  <div class="range"><span>Zoom</span><input type="range" id="adjZoom" min="30" max="400" value="100" aria-label="Wallpaper zoom"></div>
+  <div class="row" style="margin-top:16px"><button id="adjReset">Reset</button><button id="adjDone" class="go">Done</button></div></div></div>
+<main class="app" id="app"></main>
+<nav class="dock"><div class="dock-in">
+  <button id="incBtn" aria-label="Income"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2M3 10h18"/></svg></button>
+  <button class="add" id="addBtn" aria-label="New envelope"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button id="setBtn" aria-label="Customise"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+</div></nav>
+<div id="scrim"></div>
+<section id="sheet" role="dialog" aria-modal="true"></section>
+<div id="toast"></div>
+<div id="tour"><div class="spot"></div><div class="tip" role="dialog" aria-live="polite"></div></div>
+
+<script type="application/json" id="icon-data">[]</script>
+<script>
+const APP_INFO={platform:'iPhone',version:3};
+const KEY='envelopes-app-v1';
+const PALETTE=['#6f8cff','#5ec4a8','#f2b155','#f27d72','#c58af9','#4fb6d8','#9aa38f','#e58fb5'];
+const FONTS=[['Figtree','Figtree'],['Outfit','Outfit'],['Fraunces','Fraunces'],['DM Mono','Mono']];
+const TEXT_COLORS=['#ffffff','#f4ecdf','#c9cdd3','#8a909a','#4a4f57','#1a1a1a','#5b4636','#6f8cff','#5ec4a8','#f2b155','#f27d72','#c58af9','#e58fb5'];
+const ICONS=(()=>{try{return JSON.parse(document.getElementById('icon-data').textContent);}catch(e){return[];}})();
+const DEFAULT_ICON='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108"><rect width="108" height="108" fill="#6f8cff"/><path d="M37,41h34a4,4 0 0 1 4 4v18a4,4 0 0 1-4 4h-34a4,4 0 0 1-4-4v-18a4,4 0 0 1 4-4z" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><path d="M35,44l19,13l19,-13" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+const ALL_ICON_IDS=['Default',...ICONS.map(i=>i.id)].join(',');
+const EDIT_ICON='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>';
+const $=s=>document.querySelector(s);
+const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
+const ym=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+const NOW=ym(new Date());
+let view=NOW;
+const shift=(m,n)=>{const[y,mo]=m.split('-').map(Number);return ym(new Date(y,mo-1+n,1));};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const r2=n=>Math.round(n*100)/100;
+const clamp=n=>Math.max(0,Math.min(1,n));
+const num=v=>{const n=parseFloat(v);return isFinite(n)&&n>=0?r2(n):0;};
+const buzz=()=>{try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}};
+const mq=matchMedia('(prefers-color-scheme: dark)');
+
+/* ---------- data ---------- */
+function defaults(){return{settings:{theme:'auto',accent:'#6f8cff',font:'Figtree',currency:'N$',dim:35,blur:0,scale:1,bars:true,rollover:true,matchWp:true,wpPal:null,wpZoom:1,wpX:50,wpY:50,textFg:null,textMuted:null},envelopes:[],tx:[],income:[],recurring:[],monthBudgets:{}};}
+function merge(s){const d=defaults();return{...d,...s,settings:{...d.settings,...(s.settings||{})},
+  envelopes:(s.envelopes||[]).map(e=>({type:'budget',...e})),tx:s.tx||[],income:s.income||[],recurring:s.recurring||[],monthBudgets:s.monthBudgets||{}};}
+function load(){try{const r=localStorage.getItem(KEY);if(r)return merge(JSON.parse(r));}catch(e){}return defaults();}
+let S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Couldn\u2019t save. Storage is full or blocked.');}}
+
+const isGoal=e=>e.type==='goal';
+function fmt(n){const neg=n<0;n=Math.abs(r2(n));const c=S.settings.currency||'';
+  const s=n.toLocaleString('en-US',{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2});
+  return(neg?'\u2212':'')+c+(c.length>1?' ':'')+s;}
+const monthName=m=>{const[y,mo]=m.split('-').map(Number);return new Date(y,mo-1,1).toLocaleString('en',{month:'long'});};
+const monthStart=m=>{const[y,mo]=m.split('-').map(Number);return new Date(y,mo-1,1,9).toISOString();};
+function txDate(){if(view===NOW)return new Date().toISOString();const[y,mo]=view.split('-').map(Number);return new Date(y,mo-1,view<NOW?28:1,12).toISOString();}
+
+/* ---------- maths ---------- */
+const budgetOf=(e,m)=>(S.monthBudgets[m]&&S.monthBudgets[m][e.id]!=null)?S.monthBudgets[m][e.id]:(e.budget||0);
+const visible=(e,m)=>(!e.from||e.from<=m)&&(!e.until||m<=e.until);
+const autoCovered=(e,m)=>(e.autoPay||[]).some(r=>r.from<=m&&(!r.until||m<=r.until));
+const autoActive=(e,m)=>!isGoal(e)&&visible(e,m)&&autoCovered(e,m)&&!(e.autoSkip||[]).includes(m);
+const realSpent=(id,m)=>S.tx.reduce((a,t)=>t.env===id&&t.month===m?a+t.amount:a,0);
+const spentOf=(id,m)=>{const e=S.envelopes.find(x=>x.id===id);return r2(realSpent(id,m)+(e&&autoActive(e,m)?budgetOf(e,m):0));};
+const recActive=(t,m)=>t.from<=m&&(!t.until||m<=t.until)&&!(t.skip||[]).includes(m);
+const recLive=(t,m)=>t.from<=m&&(!t.until||m<=t.until);
+function firstMonth(){const a=[...S.tx.map(t=>t.month),...S.income.map(t=>t.month),...S.recurring.map(t=>t.from),...S.envelopes.map(e=>e.from).filter(Boolean)];return a.length?a.reduce((x,y)=>x<y?x:y):NOW;}
+const incomeOf=m=>r2(S.income.reduce((a,t)=>t.month===m?a+t.amount:a,0)+S.recurring.reduce((a,t)=>recActive(t,m)?a+t.amount:a,0));
+function outflowOf(m){return r2(S.envelopes.filter(e=>!isGoal(e)||e.fromIncome).reduce((a,e)=>a+spentOf(e.id,m),0));}
+function incomeCarry(m,first){if(!S.settings.rollover||m<=first)return 0;return Math.max(0,incomeLeft(shift(m,-1),first));}
+function incomeLeft(m,first){return r2(incomeOf(m)+incomeCarry(m,first)-outflowOf(m));}
+function envCarry(e,m){if(!S.settings.rollover||isGoal(e)||(e.until&&m>e.until))return 0;const start=e.from||firstMonth();if(m<=start)return 0;
+  const p=shift(m,-1);return Math.max(0,r2(budgetOf(e,p)+envCarry(e,p)-spentOf(e.id,p)));}
+const goalSaved=(e,m)=>r2((e.start||0)+S.tx.reduce((a,t)=>t.env===e.id&&t.month<=m?a+t.amount:a,0));
+
+/* ---------- colour ---------- */
+function hslRgb(h,s,l){h=((h%360)+360)%360/360;const f=n=>{const k=(n+h*12)%12,a=s*Math.min(l,1-l);return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1))));};return[f(0),f(8),f(4)];}
+function rgbHsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0,s=0;
+  if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return[h,s,l];}
+const hexRgb=h=>{h=h.replace('#','');return[0,2,4].map(i=>parseInt(h.substr(i,2),16));};
+const lum=c=>{const a=c.map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});return .2126*a[0]+.7152*a[1]+.0722*a[2];};
+const contrast=(a,b)=>{const x=lum(a),y=lum(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+const css=c=>`rgb(${c.map(Math.round).join(',')})`;
+const cssA=(c,a)=>`rgba(${c.map(Math.round).join(',')},${a})`;
+function pickL(h,s,bg,target,dark){for(let i=0;i<=47;i++){const l=dark?.5+i/100:.5-i/100;const c=hslRgb(h,s,l);if(contrast(c,bg)>=target)return c;}return dark?[245,245,245]:[15,15,15];}
+
+function extractPalette(url){return new Promise(res=>{const img=new Image();img.onload=()=>{try{
+  const N=40,c=document.createElement('canvas');c.width=c.height=N;const x=c.getContext('2d');x.drawImage(img,0,0,N,N);
+  const d=x.getImageData(0,0,N,N).data;let R=0,G=0,B=0,n=0;const bins=Array.from({length:24},()=>({w:0,h:0,s:0}));
+  for(let i=0;i<d.length;i+=4){const r=d[i],g=d[i+1],b=d[i+2];R+=r;G+=g;B+=b;n++;const[h,s,l]=rgbHsl(r,g,b);
+    const w=s*(1-Math.abs(l-.5)*2)+.001;const bi=Math.floor(h/15)%24;bins[bi].w+=w;bins[bi].h+=h*w;bins[bi].s+=s*w;}
+  const best=bins.reduce((a,b)=>b.w>a.w?b:a);
+  res({avg:[R/n,G/n,B/n],h:best.h/best.w,s:best.s/best.w});}catch(e){res(null);}};img.onerror=()=>res(null);img.src=url;});}
+
+const PAL_PROPS=['--bg','--fg','--muted','--sheet','--key','--line'];
+function wallpaperPalette(){
+  const st=S.settings,r=document.documentElement;
+  PAL_PROPS.forEach(p=>r.style.removeProperty(p));r.style.removeProperty('color-scheme');
+  r.style.setProperty('--accent',st.accent);
+  if(!wpOn||!st.matchWp||!st.wpPal)return;
+  let{avg,h,s}=st.wpPal;
+  if(s<.1){h=rgbHsl(...hexRgb(st.accent))[0];}
+  const themeDark=st.theme==='dark'||(st.theme==='auto'&&mq.matches);
+  const ov=hslRgb(h,.25,themeDark?.07:.95);
+  const a=st.dim/100;const eff=avg.map((v,i)=>v*(1-a)+ov[i]*a);
+  const dark=contrast(eff,[255,255,255])>=contrast(eff,[0,0,0]);
+  const fg=dark?hslRgb(h,.3,.97):hslRgb(h,.4,.09);
+  const comp=h+180;
+  const muted=pickL(comp,.55,eff,4.5,dark);
+  const accent=pickL(comp,.7,eff,3.2,dark);
+  const sheet=hslRgb(h,.22,dark?.09:.96);
+  r.style.setProperty('--bg',css(ov));r.style.setProperty('--fg',css(fg));r.style.setProperty('--muted',css(muted));
+  r.style.setProperty('--accent',css(accent));r.style.setProperty('--sheet',css(sheet));
+  r.style.setProperty('--key',cssA(fg,.07));r.style.setProperty('--line',cssA(fg,.14));
+  r.style.setProperty('color-scheme',dark?'dark':'light');
+}
+
+/* ---------- wallpaper storage ---------- */
+let wpOn=false;
+const idb=(()=>{let p;const db=()=>p||(p=new Promise((res,rej)=>{const r=indexedDB.open('envelopes-app',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}));
+  const run=(mode,fn)=>db().then(d=>new Promise((res,rej)=>{const t=d.transaction('kv',mode);const q=fn(t.objectStore('kv'));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error);}));
+  return{get:k=>run('readonly',s=>s.get(k)),set:(k,v)=>run('readwrite',s=>s.put(v,k)),del:k=>run('readwrite',s=>s.delete(k))};})();
+async function loadWallpaper(){try{const w=await idb.get('wallpaper');setWallpaper(w||null);
+  if(w&&!S.settings.wpPal){S.settings.wpPal=await extractPalette(w);save();}}catch(e){setWallpaper(null);}applySettings();}
+let wpImg={w:0,h:0};
+function layoutWp(){const el=$('#wp'),st=S.settings;
+  el.style.backgroundColor=st.wpPal?css(st.wpPal.avg):'';
+  el.style.transform=st.blur>0?`scale(${1+4*st.blur/Math.max(320,el.clientWidth||innerWidth)})`:'none';
+  if(!wpOn||!wpImg.w)return;
+  const vw=el.clientWidth||innerWidth,vh=el.clientHeight||innerHeight,s=Math.max(vw/wpImg.w,vh/wpImg.h)*(st.wpZoom||1);
+  el.style.backgroundSize=`${wpImg.w*s}px ${wpImg.h*s}px`;el.style.backgroundPosition=`${st.wpX??50}% ${st.wpY??50}%`;}
+addEventListener('resize',layoutWp);
+function setWallpaper(url){wpOn=!!url;if(url){const im=new Image();im.onload=()=>{wpImg={w:im.naturalWidth,h:im.naturalHeight};layoutWp();};im.src=url;
+  $('#wp').style.backgroundImage=`url("${url}")`;document.body.classList.add('has-wp');}else{$('#wp').style.backgroundImage='';document.body.classList.remove('has-wp');}}
+function readImage(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const img=new Image();img.onload=()=>{const m=1800;let w=img.naturalWidth,h=img.naturalHeight;const s=Math.min(1,m/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',.86));};img.onerror=rej;img.src=fr.result;};fr.onerror=rej;fr.readAsDataURL(file);});}
+
+function applySettings(){const st=S.settings,r=document.documentElement;
+  if(st.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',st.theme);
+  r.style.setProperty('--font',`'${st.font}'`);
+  r.style.setProperty('--dim',st.dim/100);r.style.setProperty('--blur',st.blur+'px');r.style.setProperty('--scale',st.scale);
+  document.body.classList.toggle('hide-bars',!st.bars);
+  wallpaperPalette();
+  layoutWp();
+  const app=$('#app');
+  if(st.textFg)app.style.setProperty('--fg',st.textFg);else app.style.removeProperty('--fg');
+  if(st.textMuted)app.style.setProperty('--muted',st.textMuted);else app.style.removeProperty('--muted');}
+mq.addEventListener&&mq.addEventListener('change',applySettings);
+
+/* ---------- home ---------- */
+function rowHtml(e,amt,neg,pct,l2,r2t){const c=e.color?`--c:${e.color}`:'';const mark=isGoal(e)?'<span class="ring"></span>':(e.color?'<span class="dot"></span>':'');
+  return`<li><button class="env${isGoal(e)?' goal':''}" data-id="${e.id}" style="${c}">
+    <div class="r1"><span class="name">${mark}${esc(e.name)}</span><span class="amt${neg?' neg':''}">${amt}</span></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="r2"><span>${l2}</span><span>${r2t}</span></div></button></li>`;}
+function render(){
+  const envs=S.envelopes.filter(e=>visible(e,view));
+  const spend=envs.filter(e=>!isGoal(e)),goals=envs.filter(isGoal);
+  const first=firstMonth();
+  const inc=incomeOf(view),carry=incomeCarry(view,first),out=outflowOf(view),left=r2(inc+carry-out);
+  const hasInc=inc+carry>0;
+  let envLeft=0,envSpent=0,envTotal=0;
+  const spendRows=spend.map(e=>{const b=budgetOf(e,view),c=envCarry(e,view),s=spentOf(e.id,view),avail=r2(b+c),l=r2(avail-s);
+    envLeft+=l;envSpent+=s;envTotal+=avail;
+    const extra=r2(s-(autoActive(e,view)?b:0));
+    const l2=autoActive(e,view)?(extra?`Paid automatically, ${fmt(extra)} more`:'Paid automatically'):`${fmt(s)} spent`;
+    return rowHtml(e,fmt(l),l<0,avail>0?clamp(l/avail)*100:0,l2,e.until===e.from?`of ${fmt(avail)}, this month only`:`of ${fmt(avail)}`);}).join('');
+  const goalRows=goals.map(e=>{const mi=spentOf(e.id,view),sv=goalSaved(e,view),t=e.budget||0,g=e.goal||0;
+    const pct=g>0?clamp(sv/g)*100:(t>0?clamp(mi/t)*100:0);
+    const l2=t?`${fmt(mi)} of ${fmt(t)} this month`:`${fmt(mi)} this month`;
+    const rt=g?(sv>=g?'Goal reached':`${Math.floor(clamp(sv/g)*100)}% of ${fmt(g)}`):'Saved so far';
+    return rowHtml(e,fmt(sv),false,pct,l2,rt);}).join('');
+  const[y,mo]=view.split('-').map(Number);
+  const pool=hasInc?left:envLeft;
+  let days='';
+  if(view===NOW){const dl=new Date(y,mo,0).getDate()-new Date().getDate()+1;
+    days=`${dl} day${dl===1?'':'s'} left this month`+(pool>0?`, about ${fmt(pool/dl)} a day`:'');}
+  else days=view<NOW?'This month is closed':'Planning ahead';
+  const summary=hasInc
+    ?`<button class="summary" id="sum"><div class="left">Left from income<b class="${left<0?'neg':''}">${fmt(left)}</b></div>
+       <div class="meta">${fmt(inc)} income${carry?` + ${fmt(carry)} carried over`:''}, ${fmt(out)} out<br>${days}</div></button>`
+    :`<button class="summary" id="sum"><div class="left">Left in envelopes<b class="${envLeft<0?'neg':''}">${fmt(envLeft)}</b></div>
+       <div class="meta">${fmt(envSpent)} spent of ${fmt(envTotal)}<br>${days}<br><em>Add this month\u2019s income</em></div></button>`;
+  const nothing=!S.envelopes.length&&!S.income.length;
+  $('#app').innerHTML=`
+    <header class="top"><div><div class="month">${monthName(view)}</div><div class="year">${y}${view!==NOW?`<button class="today" id="today">Back to today</button>`:''}</div></div>
+      <div class="arrows"><button id="prev" aria-label="Previous month"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button id="next" aria-label="Next month"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button></div></header>
+    ${nothing?`<div class="empty" style="margin-top:30px">Start with what comes in, then split it into envelopes. Spending envelopes hold a monthly budget. Goal envelopes fill up over time, for savings, tax or paying off a loan.
+        <div class="acts"><button id="eInc">Add income</button><button id="eAdd">Create an envelope</button></div></div>`
+    :summary+(envs.length?(spend.length?(goals.length?'<div class="group">Spending</div>':'')+`<ul class="list">${spendRows}</ul>`:'')
+      +(goals.length?'<div class="group">Goals</div>'+`<ul class="list">${goalRows}</ul>`:'')
+      :`<div class="empty">${S.envelopes.length?'No envelopes existed yet this month.':'Now split your income into envelopes.'}<div class="acts"><button id="eAdd">Create an envelope</button></div></div>`)}`;
+  $('#prev').onclick=()=>{view=shift(view,-1);render();};
+  $('#next').onclick=()=>{view=shift(view,1);render();};
+  const bind=(id,fn)=>{const el=$(id);if(el)el.onclick=fn;};
+  bind('#today',()=>{view=NOW;render();});bind('#eAdd',()=>openEdit(null));bind('#eInc',openIncome);bind('#sum',openIncome);
+  document.querySelectorAll('.env').forEach(b=>b.onclick=()=>openEnv(b.dataset.id));
+}
+
+let sx=null,sy=0;
+$('#app').addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
+$('#app').addEventListener('touchend',e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
+  if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.6){view=shift(view,dx<0?1:-1);buzz();render();}},{passive:true});
+
+/* ---------- sheets ---------- */
+function sheet(html){$('#sheet').innerHTML='<div class="grab"></div>'+html;$('#sheet').scrollTop=0;$('#scrim').classList.add('on');$('#sheet').classList.add('on');}
+function closeSheet(){$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');}
+$('#scrim').onclick=closeSheet;
+window.__back=()=>{if($('#sheet').classList.contains('on')){closeSheet();return true;}return false;};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1800);}
+function armDelete(btn,label,fn){btn.onclick=()=>{if(btn.classList.contains('armed')){fn();return;}btn.classList.add('armed');btn.textContent='Tap again to '+label.toLowerCase();setTimeout(()=>{btn.classList.remove('armed');btn.textContent=label;},3000);};}
+const dshort=d=>new Date(d).toLocaleDateString('en',{day:'numeric',month:'short'});
+
+/* generic keypad sheet */
+function amountSheet(o){
+  let amt='',mode=o.modes[0][0];
+  sheet(`<div class="sh-head"><div><h2>${esc(o.title)}</h2><div class="sub" id="remain"></div></div>${o.onEdit?`<button class="icon" id="editBtn" aria-label="Edit">${EDIT_ICON}</button>`:''}</div>
+    ${o.modes.length>1?`<div class="seg" id="mode">${o.modes.map((m,i)=>`<button data-m="${m[0]}" class="${i?'':'on'}">${m[1]}</button>`).join('')}</div>`:'<div style="height:10px"></div>'}
+    <div class="amount" id="amount"></div>
+    <input id="note" class="field" placeholder="${esc(o.notePh)}" maxlength="60" autocomplete="off">
+    <div class="pad">${['1','2','3','4','5','6','7','8','9','.','0','del'].map(k=>`<button data-k="${k}" aria-label="${k==='del'?'Delete':k}">${k==='del'?'\u232B':k}</button>`).join('')}</div>
+    ${o.extra||''}
+    <button class="primary" id="go">${o.modes[0][2]}</button>
+    <div class="sect">${monthName(view)} entries</div><ul class="tx" id="txl"></ul><div id="xtra"></div>`);
+  const show=()=>{const c=S.settings.currency||'';$('#amount').textContent=c+(c.length>1?' ':'')+(amt||'0');};
+  const upd=()=>{const inf=o.info();$('#remain').innerHTML=inf.sub;
+    $('#txl').innerHTML=inf.items.length?inf.items.map(it=>`<li><div class="t"><div>${esc(it.label)}</div><small>${dshort(it.date)}${it.sub?', '+esc(it.sub):''}</small></div>
+      <span class="v${it.plus?' plus':''}">${it.plus?'+':'\u2212'}${fmt(Math.abs(it.amount))}</span><button class="x" data-del="${it.id}" aria-label="Remove entry">\u00D7</button></li>`).join('')
+      :'<li class="none">Nothing yet this month.</li>';
+    $('#txl').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const m=o.onDel(b.dataset.del);save();upd();render();toast(m||'Entry removed');});
+    $('#xtra').innerHTML=inf.after||'';if(o.afterUpd)o.afterUpd(upd);};
+  show();upd();if(o.mount)o.mount();
+  if(o.modes.length>1)$('#mode').querySelectorAll('button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;$('#mode').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));$('#go').textContent=o.modes.find(m=>m[0]===mode)[2];});
+  $('#sheet').querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{const k=b.dataset.k;buzz();
+    if(k==='del')amt=amt.slice(0,-1);
+    else if(k==='.'){if(!amt.includes('.'))amt=(amt||'0')+'.';}
+    else{if(amt.includes('.')&&amt.split('.')[1].length>=2)return;if(amt==='0')amt=k;else if(amt.replace('.','').length<9)amt+=k;}
+    show();});
+  $('#go').onclick=()=>{const v=r2(parseFloat(amt));
+    if(!(v>0)){const a=$('#amount');a.classList.remove('shake');void a.offsetWidth;a.classList.add('shake');return;}
+    const msg=o.onGo(v,mode,$('#note').value.trim());save();amt='';$('#note').value='';show();upd();render();buzz();toast(msg);};
+  if(o.onEdit)$('#editBtn').onclick=o.onEdit;
+}
+
+function openIncome(){
+  let repeat=false;
+  amountSheet({title:'Income',modes:[['in','Add','Add income']],notePh:'Where\u2019s it from? e.g. Salary',
+    extra:`<div class="toggle" style="margin-bottom:10px"><div>Repeat every month<small>For your salary or anything that comes in monthly. It adds itself at the start of each month.</small></div><button class="sw-t" id="iRep" role="switch" aria-checked="false" aria-label="Repeat every month"></button></div>`,
+    mount:()=>{$('#iRep').onclick=ev=>{repeat=!repeat;ev.currentTarget.classList.toggle('on',repeat);ev.currentTarget.setAttribute('aria-checked',repeat);};},
+    info:()=>{const f=firstMonth(),inc=incomeOf(view),c=incomeCarry(view,f),l=incomeLeft(view,f);
+      const real=S.income.filter(t=>t.month===view).map(t=>({id:t.id,label:t.note||'Income',date:t.date,amount:t.amount,plus:true}));
+      const recs=S.recurring.filter(t=>recActive(t,view)).map(t=>({id:'r:'+t.id,label:t.note||'Income',sub:'repeats monthly',date:monthStart(view),amount:t.amount,plus:true}));
+      const live=S.recurring.filter(t=>recLive(t,view));
+      const after=live.length?`<div class="sect">Repeating income</div><ul class="tx" id="recl">${live.map(t=>`<li data-r="${t.id}"><div class="t"><div>${esc(t.note||'Income')}</div><small>${fmt(t.amount)} every month${t.until?`, until ${monthName(t.until)}`:''}</small></div>
+        <button class="lnk" data-ch="${t.id}">Change</button>${t.until?'':`<button class="lnk" data-stop="${t.id}">Stop</button>`}</li>`).join('')}</ul>
+        <div class="note">Change sets a new amount from ${monthName(view)} onward. Stop ends it after ${monthName(view)}. Earlier months keep their amounts.</div>`:'';
+      return{sub:`${fmt(inc)} received in ${monthName(view)}${c?`<br>${fmt(c)} carried over from last month`:''}<br>${fmt(l)} left after spending`,
+        items:[...recs,...real.sort((a,b)=>b.date.localeCompare(a.date))],after};},
+    afterUpd:upd=>{const box=$('#recl');if(!box)return;
+      box.querySelectorAll('[data-stop]').forEach(b=>b.onclick=()=>{const t=S.recurring.find(x=>x.id===b.dataset.stop);t.until=view;save();upd();render();toast(`Stops after ${monthName(view)}`);});
+      box.querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{const t=S.recurring.find(x=>x.id===b.dataset.ch);const li=b.closest('li');
+        li.innerHTML=`<div class="t"><div>${esc(t.note||'Income')}</div><small>New monthly amount</small></div><input class="inl" type="number" inputmode="decimal" min="0" step="0.01" value="${t.amount}"><button class="lnk">Save</button>`;
+        const inp=li.querySelector('input');inp.focus();inp.select();
+        li.querySelector('.lnk').onclick=()=>{const v=num(inp.value);if(!(v>0)){toast('Enter an amount');return;}
+          if(v!==t.amount){if(t.from>=view){t.amount=v;}else{const nt={id:uid(),amount:v,note:t.note,from:view,until:t.until,skip:(t.skip||[]).filter(m=>m>=view)};t.until=shift(view,-1);S.recurring.push(nt);}}
+          save();upd();render();toast(`Now ${fmt(v)} a month`);};});},
+    onGo:(v,m,note)=>{if(repeat){S.recurring.push({id:uid(),amount:v,note,from:view,until:null,skip:[]});return`Added ${fmt(v)}, repeats monthly`;}
+      S.income.push({id:uid(),amount:v,note,date:txDate(),month:view});return`Added ${fmt(v)} income`;},
+    onDel:id=>{if(id.startsWith('r:')){const t=S.recurring.find(x=>x.id===id.slice(2));if(t){(t.skip=t.skip||[]).push(view);}return'Removed for this month only';}
+      S.income=S.income.filter(t=>t.id!==id);}});
+}
+
+function openEnv(id){
+  const e=S.envelopes.find(x=>x.id===id);if(!e)return;
+  const items=()=>S.tx.filter(t=>t.env===e.id&&t.month===view).sort((a,b)=>b.date.localeCompare(a.date));
+  const onDel=tid=>{if(tid==='auto'){(e.autoSkip=e.autoSkip||[]).push(view);return'Removed for this month only';}S.tx=S.tx.filter(t=>t.id!==tid);};
+  if(isGoal(e)){
+    amountSheet({title:e.name,onEdit:()=>openEdit(e.id),modes:[['in','Put in','Put in'],['out','Take out','Take out']],notePh:'Note (optional)',
+      info:()=>{const mi=spentOf(e.id,view),sv=goalSaved(e,view),t=e.budget||0,g=e.goal||0;
+        const line1=t?`${fmt(mi)} of ${fmt(t)} target this month`:`${fmt(mi)} put in this month`;
+        const line2=g?`${fmt(sv)} of ${fmt(g)} overall, ${Math.floor(clamp(sv/g)*100)}%`:`${fmt(sv)} in total`;
+        return{sub:`${line1}<br>${line2}${e.fromIncome?'':'<br>Doesn\u2019t count against income'}`,
+          items:items().map(t=>({id:t.id,label:t.note||(t.amount>0?'Put in':'Taken out'),date:t.date,amount:t.amount,plus:t.amount>0}))};},
+      onGo:(v,m,note)=>{S.tx.push({id:uid(),env:e.id,amount:m==='in'?v:-v,note,date:txDate(),month:view});return m==='in'?`Put in ${fmt(v)}`:`Took out ${fmt(v)}`;},
+      onDel});
+  }else{
+    amountSheet({title:e.name,onEdit:()=>openEdit(e.id),modes:[['spend','Spend','Spend'],['add','Add back','Add back']],notePh:'What was it for? (optional)',
+      info:()=>{const b=budgetOf(e,view),c=envCarry(e,view),avail=r2(b+c),l=r2(avail-spentOf(e.id,view));
+        const autoIt=autoActive(e,view)?[{id:'auto',label:'Paid automatically',sub:'monthly bill',date:monthStart(view),amount:b,plus:false}]:[];
+        return{sub:`${fmt(l)} left of ${fmt(avail)}${c?`<br>Includes ${fmt(c)} carried over`:''}${autoCovered(e,view)?'<br>Paid automatically each month':''}${e.until===e.from?'<br>This month only':''}`,
+          items:[...autoIt,...items().map(t=>({id:t.id,label:t.note||(t.amount>0?'Spent':'Added back'),date:t.date,amount:t.amount,plus:t.amount<0}))]};},
+      onGo:(v,m,note)=>{S.tx.push({id:uid(),env:e.id,amount:m==='spend'?v:-v,note,date:txDate(),month:view});return m==='spend'?`Spent ${fmt(v)}`:`Added back ${fmt(v)}`;},
+      onDel});
+  }
+}
+
+/* ---------- create / edit envelope ---------- */
+function openEdit(id){
+  const isNew=!id;const e=isNew?{type:'budget',name:'',budget:'',goal:'',start:'',color:null,fromIncome:false}:S.envelopes.find(x=>x.id===id);
+  let type=e.type||'budget',color=e.color||null,fromInc=!!e.fromIncome,repM=isNew?true:!e.until,autoP=isNew?false:autoCovered(e,view);
+  sheet(`<h2>${isNew?'New envelope':'Edit envelope'}</h2>
+    ${isNew?`<div class="seg" id="eType"><button data-v="budget" class="on">Spending</button><button data-v="goal">Goal</button></div><div class="note" id="typeNote"></div>`:''}
+    <label class="lbl" for="en">Name</label><input id="en" class="field" maxlength="32" autocomplete="off">
+    <label class="lbl" for="eb" id="ebL">Monthly budget</label><input id="eb" class="field" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+    <div id="budNote">${isNew?'':`<div class="note">Changing the budget applies from ${monthName(view)} onward. Earlier months keep their old budget.</div>`}
+      <div class="toggle" style="margin-top:14px"><div>Repeat every month<small id="repNote"></small></div><button class="sw-t${repM?' on':''}" id="eRep" role="switch" aria-checked="${repM}" aria-label="Repeat every month"></button></div>
+      <div class="toggle"><div>Pay automatically<small>For fixed bills like rent, water, electricity or Wi-Fi. The full budget comes off your income at the start of each month.</small></div><button class="sw-t${autoP?' on':''}" id="eAuto" role="switch" aria-checked="${autoP}" aria-label="Pay automatically"></button></div></div>
+    <div id="goalF">
+      <label class="lbl" for="eg">Total goal (optional)</label><input id="eg" class="field" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. the full loan amount">
+      <label class="lbl" for="es">Already saved or paid (optional)</label><input id="es" class="field" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+      <div class="toggle" style="margin-top:14px"><div>Take deposits from income<small>When on, money you put in here comes out of what\u2019s left from income.</small></div><button class="sw-t${fromInc?' on':''}" id="eInc" role="switch" aria-checked="${fromInc}" aria-label="Take deposits from income"></button></div>
+    </div>
+    <label class="lbl">Colour</label><div class="sw" id="ec"><button class="auto${!color?' on':''}" data-c="" aria-label="Use app accent"></button>${PALETTE.map(c=>`<button style="--c:${c}" data-c="${c}" class="${color===c?'on':''}" aria-label="${c}"></button>`).join('')}</div>
+    <div style="height:24px"></div><button class="primary" id="esave">${isNew?'Create envelope':'Save changes'}</button>
+    ${isNew?'':`${isGoal(e)?'':'<div class="note" style="margin-top:18px">To stop using this envelope but keep its history, switch off Repeat every month instead of deleting it.</div>'}<button class="ghost danger" id="edel">Delete envelope and its history</button>`}`);
+  const sync=()=>{const g=type==='goal';
+    $('#ebL').textContent=g?'Monthly target (optional)':'Monthly budget';
+    $('#en').placeholder=g?'Emergency fund':'Groceries';
+    $('#goalF').style.display=g?'':'none';$('#budNote').style.display=g?'none':'';
+    const tn=$('#typeNote');if(tn)tn.textContent=g?'Money you put in over time, like savings, tax or a loan. Progress adds up across months.':'Money you spend through the month. Whatever\u2019s left rolls into next month.';};
+  $('#en').value=e.name;$('#eb').value=isNew?'':(budgetOf(e,view)||'');$('#eg').value=e.goal||'';$('#es').value=e.start||'';
+  sync();
+  const repNote=()=>{$('#repNote').textContent=repM?'Carries into every new month.':`Only shows up to ${monthName(view)}. Its history stays saved.`;};repNote();
+  const tg=(id,get,set)=>{$(id).onclick=ev=>{set(!get());ev.currentTarget.classList.toggle('on',get());ev.currentTarget.setAttribute('aria-checked',get());repNote();};};
+  tg('#eRep',()=>repM,v=>repM=v);tg('#eAuto',()=>autoP,v=>autoP=v);
+  if(isNew)$('#eType').querySelectorAll('button').forEach(b=>b.onclick=()=>{type=b.dataset.v;$('#eType').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));sync();});
+  $('#eInc').onclick=ev=>{fromInc=!fromInc;ev.currentTarget.classList.toggle('on',fromInc);ev.currentTarget.setAttribute('aria-checked',fromInc);};
+  $('#ec').querySelectorAll('button').forEach(b=>b.onclick=()=>{color=b.dataset.c||null;$('#ec').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));});
+  $('#esave').onclick=()=>{const name=$('#en').value.trim();
+    if(!name){$('#en').focus();toast('Give the envelope a name');return;}
+    const rawB=$('#eb').value.trim();
+    if(type==='budget'&&!(parseFloat(rawB)>=0)){$('#eb').focus();toast('Enter a monthly budget');return;}
+    const b=num(rawB);
+    if(isNew){const ne={id:uid(),type,name,budget:b,color,from:view};
+      if(type==='budget'){if(!repM)ne.until=view;if(autoP)ne.autoPay=[{from:view,until:null}];}
+      if(type==='goal'){ne.goal=num($('#eg').value);ne.start=num($('#es').value);ne.fromIncome=fromInc;}
+      S.envelopes.push(ne);save();render();closeSheet();toast('Envelope created');return;}
+    if(type==='budget'){const old=budgetOf(e,view);
+      if(old!==b){const months=new Set([...S.tx.filter(t=>t.env===e.id).map(t=>t.month),...Object.keys(S.monthBudgets)]);
+        months.forEach(m=>{if(m<view&&!(S.monthBudgets[m]&&S.monthBudgets[m][e.id]!=null)){(S.monthBudgets[m]=S.monthBudgets[m]||{})[e.id]=e.budget;}});
+        Object.keys(S.monthBudgets).forEach(m=>{if(m>=view&&S.monthBudgets[m])delete S.monthBudgets[m][e.id];});
+        e.budget=b;}
+      if(repM&&e.until)e.until=null;else if(!repM&&!e.until)e.until=view;
+      const was=autoCovered(e,view);
+      if(autoP&&!was){(e.autoPay=e.autoPay||[]).push({from:view,until:null});e.autoSkip=(e.autoSkip||[]).filter(m=>m!==view);}
+      if(!autoP&&was){e.autoPay=(e.autoPay||[]).filter(r=>!(r.from<=view&&(!r.until||view<=r.until)&&r.from===view));
+        e.autoPay.forEach(r=>{if(r.from<view&&(!r.until||view<=r.until))r.until=shift(view,-1);});}}
+    else{e.budget=b;e.goal=num($('#eg').value);e.start=num($('#es').value);e.fromIncome=fromInc;}
+    e.name=name;e.color=color;save();render();toast('Changes saved');openEnv(e.id);};
+  if(!isNew)armDelete($('#edel'),'Delete envelope and its history',()=>{S.envelopes=S.envelopes.filter(x=>x.id!==e.id);S.tx=S.tx.filter(t=>t.env!==e.id);save();render();closeSheet();toast('Envelope deleted');});
+}
+
+/* ---------- customise ---------- */
+function openSettings(){
+  const st=S.settings;const canPin=!!(window.Android&&window.Android.pinShortcut);
+  const canIcon=!!(window.Android&&window.Android.setAppIcon)&&ICONS.length>0;
+  const swRow=(id,list,val)=>`<div class="sw" id="${id}"><button class="none${!val?' on':''}" data-c="" aria-label="Automatic">A</button>${list.map(c=>`<button style="--c:${c}" data-c="${c}" class="${val===c?'on':''}" aria-label="${c}"></button>`).join('')}<label aria-label="Custom colour">+<input type="color" value="${val||'#888888'}"></label></div>`;
+  const seg=(id,opts,val)=>`<div class="seg" id="${id}">${opts.map(([v,l,style])=>`<button data-v="${v}" class="${String(val)===String(v)?'on':''}" ${style?`style="${style}"`:''}>${l}</button>`).join('')}</div>`;
+  const tog=(id,on,label,small)=>`<div class="toggle"><div>${label}${small?`<small>${small}</small>`:''}</div><button class="sw-t${on?' on':''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${label}"></button></div>`;
+  sheet(`<h2>Customise</h2>
+    <div class="sect">Theme</div>${seg('sTheme',[['auto','Auto'],['light','Light'],['dark','Dark']],st.theme)}
+    <div class="sect">Accent</div><div class="sw" id="sAcc">${PALETTE.map(c=>`<button style="--c:${c}" data-c="${c}" class="${st.accent===c?'on':''}" aria-label="${c}"></button>`).join('')}
+      <label aria-label="Custom colour">+<input type="color" id="sCustom" value="${st.accent}"></label></div>
+    <div class="note" id="accNote"></div>
+    <div class="sect">Main text colour</div>${swRow('sFg',TEXT_COLORS,st.textFg)}
+    <div class="sect">Secondary text colour</div>${swRow('sMuted',TEXT_COLORS,st.textMuted)}
+    <div class="note">A means automatic. Your own picks apply to the main screen and win over wallpaper matching.</div>
+    <div class="sect">Typeface</div>${seg('sFont',FONTS.map(([f,l])=>[f,l,`font-family:'${f}'`]),st.font)}
+    <div class="sect">Text size</div>${seg('sScale',[[0.9,'Small'],[1,'Medium'],[1.1,'Large']],st.scale)}
+    <div class="sect">Wallpaper</div>
+    <div class="row"><button id="wpPick">Choose</button><button id="wpAdj">Adjust</button><button id="wpDel">Remove</button></div>
+    <input type="file" id="wpFile" accept="image/*" hidden>
+    <div class="range"><span>Dim</span><input type="range" id="sDim" min="0" max="90" value="${st.dim}"></div>
+    <div class="range"><span>Blur</span><input type="range" id="sBlur" min="0" max="24" value="${st.blur}"></div>
+    ${tog('sMatch',st.matchWp,'Match colours to wallpaper','Picks readable text and accent colours from your image.')}
+    ${canIcon?`<div class="sect">App icon</div>
+    <div class="icgrid" id="icGrid">${[{id:'Default',src:DEFAULT_ICON},...ICONS].map(ic=>`<button data-id="${ic.id}" style="background-image:url('${ic.src}')" aria-label="App icon ${ic.id}"></button>`).join('')}</div>
+    <div class="note">The app may close for a moment while your phone swaps the icon. If it vanishes from your home screen, drag it back from the app drawer.</div>`:''}
+    ${canPin?`<div class="sect">Use your own image</div>
+    <div class="icrow"><div class="icprev" id="icPrev"></div><div class="icside"><button id="icPick">Choose image</button>
+      <div class="range"><span>Zoom</span><input type="range" id="icZoom" min="67" max="250" value="100"></div></div></div>
+    <input type="file" id="icFile" accept="image/*" hidden>
+    <label class="lbl" for="icName">Icon name</label><input id="icName" class="field" maxlength="20" value="Envelopes" autocomplete="off">
+    <button class="primary" id="icAdd" style="margin-top:14px">Add to home screen</button>
+    <div class="note">This adds a new icon with your image. Then hold the old icon and choose Remove. Don\u2019t choose Uninstall, as that deletes your budget data.</div>`:''}
+    <div class="sect">Money</div>
+    ${tog('sRoll',st.rollover,'Roll leftovers into next month','Unspent envelope money and unused income carry forward.')}
+    <label class="lbl" for="sCur">Currency symbol</label><input id="sCur" class="field" maxlength="4" autocomplete="off">
+    <div class="sect">Display</div>
+    ${tog('sBars',st.bars,'Progress bars')}
+    <div class="sect">Backup</div>
+    <div class="note">Your data lives only on this phone. Copy a backup now and then and keep it somewhere safe.</div>
+    <div class="row" style="margin-top:12px"><button id="bkOut">Copy backup</button><button id="bkIn">Restore</button></div>
+    <div id="bkBox"></div>
+    <div class="sect">Help</div>
+    <div class="row"><button id="tourBtn">Show the tour again</button></div>
+    <div class="note">Envelopes for ${APP_INFO.platform}, version ${APP_INFO.version}</div>
+    <button class="ghost danger" id="reset" style="margin-top:28px">Erase all data</button>`);
+  $('#tourBtn').onclick=startTour;
+  const accNote=()=>{$('#accNote').textContent=(wpOn&&st.matchWp)?'While colours match your wallpaper, the accent comes from the image.':'';};accNote();
+  const refresh=()=>{applySettings();render();accNote();};
+  const bindSeg=(id,key,cast=v=>v)=>$('#'+id).querySelectorAll('button').forEach(b=>b.onclick=()=>{st[key]=cast(b.dataset.v);$('#'+id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));save();refresh();});
+  bindSeg('sTheme','theme');bindSeg('sFont','font');bindSeg('sScale','scale',Number);
+  const bindTog=(id,key)=>{$('#'+id).onclick=ev=>{st[key]=!st[key];ev.currentTarget.classList.toggle('on',st[key]);ev.currentTarget.setAttribute('aria-checked',st[key]);save();refresh();};};
+  bindTog('sMatch','matchWp');bindTog('sRoll','rollover');bindTog('sBars','bars');
+  const setAcc=c=>{st.accent=c;save();applySettings();$('#sAcc').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.c===c));};
+  $('#sAcc').querySelectorAll('button').forEach(b=>b.onclick=()=>setAcc(b.dataset.c));
+  $('#sCustom').oninput=e=>setAcc(e.target.value);
+  $('#wpPick').onclick=()=>$('#wpFile').click();
+  $('#wpFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const url=await readImage(f);await idb.set('wallpaper',url);
+    st.wpPal=await extractPalette(url);st.wpZoom=1;st.wpX=50;st.wpY=50;save();setWallpaper(url);refresh();startAdjust();}catch(err){toast('That image couldn\u2019t be used. Try another.');}};
+  $('#wpAdj').onclick=()=>{if(!wpOn){toast('Choose an image first');return;}startAdjust();};
+  $('#wpDel').onclick=async()=>{try{await idb.del('wallpaper');}catch(e){}st.wpPal=null;save();setWallpaper(null);refresh();toast('Wallpaper removed');};
+  const bindSw=(id,key)=>{const box=$('#'+id);const mark=v=>box.querySelectorAll('button').forEach(x=>x.classList.toggle('on',(x.dataset.c||null)===v));
+    const set=v=>{st[key]=v||null;save();applySettings();mark(st[key]);};
+    box.querySelectorAll('button').forEach(b=>b.onclick=()=>set(b.dataset.c));box.querySelector('input').oninput=e=>set(e.target.value);};
+  bindSw('sFg','textFg');bindSw('sMuted','textMuted');
+  if(canIcon){let cur='Default';try{cur=window.Android.getAppIcon(ALL_ICON_IDS)||'Default';}catch(e){}
+    const grid=$('#icGrid');const mark=v=>grid.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.id===v));mark(cur);
+    grid.querySelectorAll('button').forEach(b=>b.onclick=()=>{const id=b.dataset.id;if(id===cur)return;cur=id;mark(id);buzz();toast('Changing your app icon');
+      setTimeout(()=>{try{window.Android.setAppIcon(id,ALL_ICON_IDS);}catch(e){toast('Couldn\u2019t change the icon');}},500);});}
+  if(canPin){let icSrc=null,icUrl=null;
+    const drawIcon=()=>{if(!icSrc)return;const N=432,z=$('#icZoom').value/100,c=document.createElement('canvas');c.width=c.height=N;const x=c.getContext('2d');
+      const a=document.createElement('canvas');a.width=a.height=1;const ax=a.getContext('2d');ax.drawImage(icSrc,0,0,1,1);const p=ax.getImageData(0,0,1,1).data;
+      x.fillStyle=`rgb(${p[0]},${p[1]},${p[2]})`;x.fillRect(0,0,N,N);
+      const w=icSrc.naturalWidth,h=icSrc.naturalHeight,side=Math.min(w,h),D=N*z,d=(N-D)/2;
+      x.drawImage(icSrc,(w-side)/2,(h-side)/2,side,side,d,d,D,D);
+      icUrl=c.toDataURL('image/png');$('#icPrev').style.backgroundImage=`url("${icUrl}")`;};
+    $('#icPick').onclick=()=>$('#icFile').click();
+    $('#icFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const url=await readImage(f);const img=new Image();img.onload=()=>{icSrc=img;drawIcon();};img.src=url;}catch(err){toast('That image couldn\u2019t be used. Try another.');}};
+    $('#icZoom').oninput=drawIcon;
+    $('#icAdd').onclick=()=>{if(!icUrl){toast('Choose an image first');return;}const name=$('#icName').value.trim()||'Envelopes';let r='error';
+      try{r=window.Android.pinShortcut(icUrl,name);}catch(e){}
+      toast(r==='ok'?'Tap Add in the pop-up':r==='unsupported'?'Your home screen doesn\u2019t allow this':'Couldn\u2019t create the icon');};}
+  $('#sDim').oninput=e=>{st.dim=+e.target.value;applySettings();};$('#sDim').onchange=save;
+  $('#sBlur').oninput=e=>{st.blur=+e.target.value;applySettings();};$('#sBlur').onchange=save;
+  $('#sCur').value=st.currency;$('#sCur').oninput=e=>{st.currency=e.target.value.trim();save();render();};
+  $('#bkOut').onclick=async()=>{const data=JSON.stringify(S);
+    $('#bkBox').innerHTML='<textarea class="field" id="bkT" readonly style="margin-top:12px"></textarea>';$('#bkT').value=data;
+    try{await navigator.clipboard.writeText(data);toast('Backup copied');}catch(e){$('#bkT').select();toast('Select all and copy the text');}};
+  $('#bkIn').onclick=()=>{$('#bkBox').innerHTML='<textarea class="field" id="bkT" placeholder="Paste your backup here" style="margin-top:12px"></textarea><button class="primary" id="bkGo" style="margin-top:10px">Restore backup</button>';
+    $('#bkGo').onclick=()=>{try{const d=JSON.parse($('#bkT').value);if(!d||!Array.isArray(d.envelopes))throw 0;S=merge(d);save();applySettings();render();closeSheet();toast('Backup restored');}catch(e){toast('That doesn\u2019t look like a backup');}};};
+  armDelete($('#reset'),'Erase all data',async()=>{S=defaults();save();try{await idb.del('wallpaper');}catch(e){}setWallpaper(null);applySettings();view=NOW;render();closeSheet();toast('All data erased');});
+}
+
+/* ---------- wallpaper adjust mode ---------- */
+function startAdjust(){closeSheet();$('#adjZoom').value=Math.round((S.settings.wpZoom||1)*100);document.body.classList.add('adjusting');}
+function setWpZoom(z){S.settings.wpZoom=Math.max(.3,Math.min(4,z));$('#adjZoom').value=Math.round(S.settings.wpZoom*100);layoutWp();}
+function moveWp(dx,dy){const el=$('#wp'),st=S.settings;if(!wpImg.w)return;
+  const s=Math.max(el.clientWidth/wpImg.w,el.clientHeight/wpImg.h)*(st.wpZoom||1);
+  const gx=el.clientWidth-wpImg.w*s,gy=el.clientHeight-wpImg.h*s;
+  if(Math.abs(gx)>1)st.wpX=Math.max(0,Math.min(100,(st.wpX??50)+dx/gx*100));
+  if(Math.abs(gy)>1)st.wpY=Math.max(0,Math.min(100,(st.wpY??50)+dy/gy*100));
+  layoutWp();}
+(()=>{const pad=$('#adj'),ptrs=new Map();let pinch0=0,zoom0=1;
+  const dist=()=>{const[a,b]=[...ptrs.values()];return Math.hypot(a.x-b.x,a.y-b.y)||1;};
+  pad.addEventListener('pointerdown',e=>{if(e.target.closest('#adjBar'))return;try{pad.setPointerCapture(e.pointerId);}catch(_){}
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===2){pinch0=dist();zoom0=S.settings.wpZoom||1;}});
+  pad.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;const p=ptrs.get(e.pointerId),c={x:e.clientX,y:e.clientY};ptrs.set(e.pointerId,c);
+    if(ptrs.size===1)moveWp(c.x-p.x,c.y-p.y);else if(ptrs.size===2&&pinch0)setWpZoom(zoom0*dist()/pinch0);});
+  const up=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch0=0;};
+  pad.addEventListener('pointerup',up);pad.addEventListener('pointercancel',up);
+  pad.addEventListener('wheel',e=>{e.preventDefault();setWpZoom((S.settings.wpZoom||1)*(e.deltaY<0?1.06:1/1.06));},{passive:false});
+  $('#adjZoom').oninput=e=>setWpZoom(e.target.value/100);
+  $('#adjReset').onclick=()=>{S.settings.wpX=50;S.settings.wpY=50;setWpZoom(1);};
+  $('#adjDone').onclick=()=>{document.body.classList.remove('adjusting');save();toast('Wallpaper saved');};})();
+
+$('#addBtn').onclick=()=>openEdit(null);
+$('#incBtn').onclick=openIncome;
+$('#setBtn').onclick=openSettings;
+/* ---------- guided tour ---------- */
+const TOUR=[
+  {t:'Welcome to Envelopes',p:'Here\u2019s a quick look at how everything works. It takes about a minute.'},
+  {sel:'.top',t:'Your month',p:'This is the month you\u2019re viewing. Tap the arrows or swipe left and right to move between months. Every month starts fresh.'},
+  {sel:'#incBtn',t:'Add your income',p:'Tap here whenever money comes in, like your salary or a client payment. You can add as many amounts as you need, and switch on Repeat every month for your salary so it adds itself.'},
+  {sel:'#sum',opt:true,t:'What\u2019s left',p:'This shows how much you have left after spending. Tap it any time to see or add income.'},
+  {sel:'#addBtn',t:'Create envelopes',p:'Make an envelope for each thing you budget for. Choose Spending for monthly costs like groceries, or Goal for savings, tax or paying off a loan. Spending envelopes can be one-off, and fixed bills like rent can be paid automatically.'},
+  {sel:'.env',opt:true,t:'Use an envelope',p:'Tap an envelope to record spending or put money into a goal. The bar shrinks as you spend, and the pencil icon inside lets you edit it.'},
+  {sel:'#setBtn',t:'Make it yours',p:'Change the theme, colours, fonts, text colours and wallpaper here.'+(window.Android?' You can also switch the app icon.':'')+' Backups and this tour live here too.'},
+  {t:'Good to know',p:'Money left at the end of the month rolls into the next one. Your data is saved only on this phone, so copy a backup from Customise now and then.'},
+  {t:'You\u2019re all set',last:true,p:`You\u2019re using Envelopes for ${APP_INFO.platform}, version ${APP_INFO.version}. You can replay this tour from Customise whenever you like.`}];
+let tourSteps=[],tourI=0;
+function startTour(){closeSheet();if(document.body.classList.contains('adjusting'))return;view=NOW;render();
+  tourSteps=TOUR.filter(s=>!s.opt||document.querySelector(s.sel));tourI=0;$('#tour').classList.add('on');showTour();}
+function endTour(){$('#tour').classList.remove('on');S.settings.tourDone=true;save();}
+function showTour(){const s=tourSteps[tourI],tip=$('#tour .tip'),spot=$('#tour .spot'),el=s.sel?document.querySelector(s.sel):null;
+  tip.innerHTML=`<h3>${s.t}</h3><p>${s.p}</p><div class="tf"><div class="dots">${tourSteps.map((_,i)=>`<i class="${i===tourI?'on':''}"></i>`).join('')}</div>
+    <div class="tb">${s.last?'':'<button class="sk">Skip</button>'}${tourI?'<button class="bk">Back</button>':''}<button class="nx">${s.last?'Done':'Next'}</button></div></div>`;
+  tip.querySelector('.nx').onclick=()=>{if(s.last)endTour();else{tourI++;showTour();}};
+  const bk=tip.querySelector('.bk');if(bk)bk.onclick=()=>{tourI--;showTour();};
+  const sk=tip.querySelector('.sk');if(sk)sk.onclick=endTour;
+  const place=()=>{const vw=innerWidth,vh=innerHeight,tw=tip.offsetWidth,th=tip.offsetHeight;
+    if(el){const r=el.getBoundingClientRect(),pad=8,round=el.closest('.dock');
+      spot.style.cssText=`top:${r.top-pad}px;left:${r.left-pad}px;width:${r.width+pad*2}px;height:${r.height+pad*2}px;border-radius:${round?'999px':'18px'}`;
+      let top=r.bottom+pad+14;if(top+th>vh-16)top=Math.max(16,r.top-pad-14-th);
+      tip.style.top=top+'px';tip.style.left=Math.max(16,Math.min(vw-tw-16,r.left+r.width/2-tw/2))+'px';}
+    else{spot.style.cssText=`top:${vh/2}px;left:${vw/2}px;width:0;height:0`;tip.style.top=Math.max(16,(vh-th)/2)+'px';tip.style.left=(vw-tw)/2+'px';}};
+  if(el&&!el.closest('.dock')){el.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(place,380);}
+  place();}
+addEventListener('resize',()=>{if($('#tour').classList.contains('on'))showTour();});
+
+applySettings();render();loadWallpaper();
+if(!S.settings.tourDone)setTimeout(startTour,700);
+if(!window.Android&&'serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')&&!/claude\.ai|claudeusercontent/.test(location.host)){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+</script>
+</body>
+</html>
